@@ -43,25 +43,49 @@ impl MSA {
         self.records.is_empty()
     }
 
-    pub fn get_ids(&self) -> Vec<&[u8]> {
-        self.records.iter().map(|x| x.name()).collect()
+    pub fn get_ids(&self) -> Vec<String> {
+        self.records
+            .iter()
+            .map(|x| String::from_utf8(x.name().to_vec()).unwrap())
+            .collect()
     }
 
-    pub fn push(&mut self, record: Record) -> Result<(), String> {
+    pub fn add_record(&mut self, record: Record) -> Result<(), String> {
         if !self.is_empty() && record.sequence().len() != self.alignment_len() {
             Err(format!(
                 "New sequence is not of length {}",
                 self.alignment_len()
             ))
-        } else if !self.is_empty() && self.get_ids().contains(&record.name()) {
-            Err(format!(
-                "New sequence have same id {} which is the same as an MSA sequence",
-                String::from_utf8(record.name().to_vec()).unwrap()
-            ))
         } else {
             self.records.push(record);
             Ok(())
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.records.clear();
+        self.annotations.clear();
+        self.column_annotations.clear();
+    }
+
+    pub fn records(&self) -> &Vec<noodles::fasta::Record> {
+        &self.records
+    }
+
+    pub fn get_annotation(&self, name: &str) -> Option<&String> {
+        self.annotations.get(name)
+    }
+
+    pub fn get_column_annotations(&self) -> &HashMap<String, String> {
+        &self.column_annotations
+    }
+
+    pub fn add_column_annotation(&mut self, name: String, value: String) -> Option<String> {
+        self.column_annotations.insert(name, value)
+    }
+
+    pub fn add_annotation(&mut self, name: String, value: String) -> Option<String> {
+        self.annotations.insert(name, value)
     }
 }
 
@@ -192,7 +216,7 @@ mod tests {
             fasta::record::Definition::new("id1", None),
             fasta::record::Sequence::from(b"ACGT".to_vec()),
         );
-        assert!(msa.push(record.clone()).is_ok());
+        assert!(msa.add_record(record.clone()).is_ok());
         assert_eq!(msa.len(), 1);
         assert_eq!(msa.records[0], record);
     }
@@ -204,12 +228,12 @@ mod tests {
             fasta::record::Definition::new("id1", None),
             fasta::record::Sequence::from(b"ACG".to_vec()),
         );
-        msa.push(record.clone()).unwrap();
+        msa.add_record(record.clone()).unwrap();
         let record1 = fasta::Record::new(
             fasta::record::Definition::new("id2", None),
             fasta::record::Sequence::from(b"ACGT".to_vec()),
         );
-        assert!(msa.push(record1.clone()).is_err());
+        assert!(msa.add_record(record1.clone()).is_err());
         assert_eq!(msa.len(), 1);
     }
 
@@ -225,7 +249,7 @@ mod tests {
             fasta::record::Definition::new("id1", None),
             fasta::record::Sequence::from(b"ACG".to_vec()),
         );
-        msa.push(record.clone()).unwrap();
+        msa.add_record(record.clone()).unwrap();
         assert_eq!(
             msa.to_string(),
             "Alignment with 1 row and 3 columns\nid1 ACG"
