@@ -16,6 +16,7 @@ pub struct MSA {
 }
 
 impl MSA {
+    /// Creates a new multiple sequence alignment structure
     pub fn new(
         records: Vec<Record>,
         annotations: HashMap<String, String>,
@@ -27,6 +28,15 @@ impl MSA {
             column_annotations,
         }
     }
+
+    /// Returns the number of record in alignment
+    /// # Example
+    /// ```
+    /// use align_rs::msa::MSA;
+    ///
+    /// let msa = MSA::default();
+    /// assert_eq!(msa.len(), 0);
+    /// ```
     pub fn len(&self) -> usize {
         self.records.len()
     }
@@ -50,16 +60,8 @@ impl MSA {
             .collect()
     }
 
-    pub fn add_record(&mut self, record: Record) -> Result<(), String> {
-        if !self.is_empty() && record.sequence().len() != self.alignment_len() {
-            Err(format!(
-                "New sequence is not of length {}",
-                self.alignment_len()
-            ))
-        } else {
-            self.records.push(record);
-            Ok(())
-        }
+    pub fn add_record(&mut self, record: Record) {
+        self.records.push(record);
     }
 
     pub fn clear(&mut self) {
@@ -216,25 +218,9 @@ mod tests {
             fasta::record::Definition::new("id1", None),
             fasta::record::Sequence::from(b"ACGT".to_vec()),
         );
-        assert!(msa.add_record(record.clone()).is_ok());
+        msa.add_record(record.clone());
         assert_eq!(msa.len(), 1);
         assert_eq!(msa.records[0], record);
-    }
-
-    #[test]
-    fn msa_push_invalid_sequence() {
-        let mut msa = MSA::default();
-        let record = fasta::Record::new(
-            fasta::record::Definition::new("id1", None),
-            fasta::record::Sequence::from(b"ACG".to_vec()),
-        );
-        msa.add_record(record.clone()).unwrap();
-        let record1 = fasta::Record::new(
-            fasta::record::Definition::new("id2", None),
-            fasta::record::Sequence::from(b"ACGT".to_vec()),
-        );
-        assert!(msa.add_record(record1.clone()).is_err());
-        assert_eq!(msa.len(), 1);
     }
 
     #[test]
@@ -249,7 +235,7 @@ mod tests {
             fasta::record::Definition::new("id1", None),
             fasta::record::Sequence::from(b"ACG".to_vec()),
         );
-        msa.add_record(record.clone()).unwrap();
+        msa.add_record(record.clone());
         assert_eq!(
             msa.to_string(),
             "Alignment with 1 row and 3 columns\nid1 ACG"
