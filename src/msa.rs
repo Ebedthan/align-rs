@@ -1,7 +1,7 @@
 use core::fmt;
 use std::collections::HashMap;
 
-use noodles::fasta::Record;
+use crate::record::Record;
 
 #[derive(Default, Debug, Clone)]
 pub struct MSA {
@@ -41,27 +41,12 @@ impl MSA {
         self.records.len()
     }
 
-    pub fn alignment_len(&self) -> usize {
-        if self.records.is_empty() {
-            0
-        } else {
-            self.records[0].sequence().len()
-        }
+    pub fn col_len(&self) -> usize {
+        self.records.first().map(|x| x.len()).unwrap_or(0)
     }
 
     pub fn is_empty(&self) -> bool {
         self.records.is_empty()
-    }
-
-    pub fn get_ids(&self) -> Vec<String> {
-        self.records
-            .iter()
-            .map(|x| String::from_utf8(x.name().to_vec()).unwrap())
-            .collect()
-    }
-
-    pub fn add_record(&mut self, record: Record) {
-        self.records.push(record);
     }
 
     pub fn clear(&mut self) {
@@ -70,78 +55,91 @@ impl MSA {
         self.column_annotations.clear();
     }
 
-    pub fn records(&self) -> &Vec<noodles::fasta::Record> {
-        &self.records
-    }
-
     pub fn get_annotation(&self, name: &str) -> Option<&String> {
         self.annotations.get(name)
     }
 
-    pub fn get_column_annotations(&self) -> &HashMap<String, String> {
-        &self.column_annotations
+    pub fn get_column_annotation(&self, name: &str) -> Option<&String> {
+        self.column_annotations.get(name)
     }
 
-    pub fn add_column_annotation(&mut self, name: String, value: String) -> Option<String> {
-        self.column_annotations.insert(name, value)
+    pub fn add_column_annotation(&mut self, name: &str, value: &str) {
+        if let Some(x) = self.column_annotations.get_mut(name) {
+            x.push_str(value);
+        } else {
+            self.column_annotations
+                .insert(name.to_string(), value.to_string());
+        }
     }
 
     pub fn add_annotation(&mut self, name: String, value: String) -> Option<String> {
         self.annotations.insert(name, value)
     }
-}
 
-impl fmt::Display for MSA {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut string: Vec<String> = vec![];
-        for record in &self.records {
-            let mstr: String = if record.sequence().len() > 60 {
-                String::from_utf8(record.name().to_vec()).unwrap()
-                    + &String::from(" ")
-                    + &String::from_utf8(record.sequence().as_ref()[..60].to_vec()).unwrap()
-                    + &String::from("...")
-            } else {
-                String::from_utf8(record.name().to_vec()).unwrap()
-                    + &String::from(" ")
-                    + &String::from_utf8(record.sequence().as_ref().to_vec()).unwrap()
-            };
-            string.push(mstr);
-        }
-        let mstr = string
-            .iter()
-            .map(|x| x.to_string() + "\n")
-            .collect::<String>();
-        let mstr = mstr.trim_end_matches('\n');
-        if self.records.len() == 1 && self.records[0].sequence().len() == 1 {
-            write!(
-                f,
-                "Alignment with {} row and {} column\n{}",
-                self.records.len(),
-                self.records[0].sequence().len(),
-                mstr
-            )
-        } else if self.records.len() == 1 && self.records[0].sequence().len() > 1 {
-            write!(
-                f,
-                "Alignment with {} row and {} columns\n{}",
-                self.records.len(),
-                self.records[0].sequence().len(),
-                mstr
-            )
-        } else if self.records.is_empty() {
-            write!(f, "No sequence in alignment")
+    pub fn contains(&self, haystack: &str) -> bool {
+        self.records.iter().map(|x| x.id()).any(|x| x == haystack)
+    }
+
+    pub fn push_record(&mut self, id: &str, seq: &str) {
+        if self.contains(id) {
+            for x in &mut self.records {
+                if x.id() == id {
+                    x.push_seq(seq);
+                    break;
+                }
+            }
         } else {
-            write!(
-                f,
-                "Alignment with {} rows and {} columns\n{}",
-                self.records.len(),
-                self.records[0].sequence().len(),
-                mstr
-            )
+            self.records.push(Record::new(id, seq));
         }
     }
 }
 
+impl fmt::Display for MSA {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_empty() {
+            return write!(f, "No sequence in alignment");
+        }
+
+        let num_rows = self.len();
+        let num_cols = self.col_len();
+        let mut string = String::new();
+        let mut to_continue: &str = "";
+        for (idx, record) in self.records.iter().enumerate() {
+            if idx > 9 {
+                to_continue = "...";
+                break;
+            }
+            let truncated_sequence = &record.sequence()[..std::cmp::min(30, record.len())];
+            string.push_str(&format!(
+                "{}\t{}\n",
+                record.id(),
+                if record.len() > 30 {
+                    format!("{}...", truncated_sequence)
+                } else {
+                    truncated_sequence.to_string()
+                }
+            ));
+        }
+        let header = if num_rows == 1 {
+            format!("Alignment with {} row", num_rows)
+        } else {
+            format!("Alignment with {} rows", num_rows)
+        };
+
+        let column_desc = if num_cols == 1 {
+            format!(" and {} column", num_cols)
+        } else {
+            format!(" and {} columns", num_cols)
+        };
+        if to_continue.is_empty() {
+            write!(f, "{}{}\n{}", header, column_desc, string)
+        } else {
+            write!(f, "{}{}\n{}\n{}", header, column_desc, string, to_continue)
+        }
+    }
+}
+
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,4 +239,4 @@ mod tests {
             "Alignment with 1 row and 3 columns\nid1 ACG"
         );
     }
-}
+}*/

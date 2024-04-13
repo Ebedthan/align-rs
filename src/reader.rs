@@ -1,10 +1,6 @@
 use std::error::Error;
 use std::io::BufRead;
 
-use noodles::fasta::{
-    record::{Definition, Sequence},
-    Record,
-};
 use regex::Regex;
 
 use crate::msa::MSA;
@@ -56,29 +52,23 @@ where
     }
 
     // Handling rest of file
-    let mut consensus_idx: u32 = 1;
     let mut start: usize = 0;
     let mut end: usize = 0;
     buf.clear();
+
     while reader.inner.read_line(&mut buf)? != 0 {
         if !buf.starts_with(' ') && buf != "\n" {
             let fields: Vec<&str> = buf.split_whitespace().filter(|x| !x.is_empty()).collect();
             start = fields[0].len() + buf[fields[0].len()..].find(fields[1]).unwrap_or(0);
             end = start + fields[1].len();
-            let record = Record::new(
-                Definition::new(fields[0].to_string(), None),
-                Sequence::from(fields[1].as_bytes().to_vec()),
-            );
-            msa.add_record(record.clone());
+            msa.push_record(fields[0], fields[1]);
         }
 
         if buf.starts_with(' ') {
-            msa.add_column_annotation(consensus_idx.to_string(), buf[start..end].to_string());
+            msa.add_column_annotation("cons", &buf[start..end]);
         }
         buf.clear();
-        consensus_idx += 1;
     }
-
     Ok(msa)
 }
 
@@ -94,5 +84,11 @@ mod tests {
         let msa = data.read_clustal().unwrap();
         assert_eq!(msa.get_annotation("program").unwrap(), "CLUSTAL");
         assert_eq!(msa.get_annotation("version").unwrap(), "1.81");
+        assert_eq!(msa.len(), 2);
+        let cons = msa.get_column_annotation("cons").unwrap();
+        assert_eq!(
+            &cons[..50],
+            "          * *: ::    :.   :*  :  :. : . :*  ::   ."
+        );
     }
 }

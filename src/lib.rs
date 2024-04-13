@@ -1,5 +1,6 @@
 pub mod msa;
 pub mod reader;
+mod record;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
