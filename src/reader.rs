@@ -20,6 +20,10 @@ where
     pub fn read_clustal(&mut self) -> Result<MSA, Box<dyn Error>> {
         read_clustal(&mut self.inner)
     }
+
+    pub fn read_stockholm(&mut self) -> Result<MSA, Box<dyn Error>> {
+        read_stockholm(&mut self.inner)
+    }
 }
 
 fn read_clustal<R>(reader: &mut R) -> Result<MSA, Box<dyn Error>>
@@ -69,6 +73,16 @@ where
         }
         buf.clear();
     }
+    Ok(msa)
+}
+
+fn read_stockholm<R>(reader: &mut R) -> Result<MSA, Box<dyn Error>>
+where
+    R: BufRead,
+{
+    let mut msa = MSA::default();
+    let reader = Reader::new(reader);
+
     Ok(msa)
 }
 

@@ -3,7 +3,9 @@ use std::collections::HashMap;
 
 use crate::record::Record;
 
-#[derive(Default, Debug, Clone)]
+/// Structure containing multiple sequence alignments
+///
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct MSA {
     /// A list of Record objects, whose sequences are all the same length
     records: Vec<Record>,
@@ -64,12 +66,10 @@ impl MSA {
     }
 
     pub fn add_column_annotation(&mut self, name: &str, value: &str) {
-        if let Some(x) = self.column_annotations.get_mut(name) {
-            x.push_str(value);
-        } else {
-            self.column_annotations
-                .insert(name.to_string(), value.to_string());
-        }
+        self.column_annotations
+            .entry(name.to_string())
+            .or_default()
+            .push_str(value);
     }
 
     pub fn add_annotation(&mut self, name: String, value: String) -> Option<String> {
@@ -139,24 +139,14 @@ impl fmt::Display for MSA {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
-    use noodles::fasta;
+    use crate::record::Record;
 
     #[test]
     fn msa_new() {
-        let records = vec![
-            fasta::Record::new(
-                fasta::record::Definition::new("id1", None),
-                fasta::record::Sequence::from(b"ACGT".to_vec()),
-            ),
-            fasta::Record::new(
-                fasta::record::Definition::new("id2", None),
-                fasta::record::Sequence::from(b"TGCA".to_vec()),
-            ),
-        ];
+        let records = vec![Record::new("id1", "ACGT"), Record::new("id2", "TGCA")];
 
         let mut annotations = HashMap::new();
         annotations.insert(String::from("author"), String::from("John Doe"));
@@ -177,16 +167,7 @@ mod tests {
 
     #[test]
     fn msa_len() {
-        let records = vec![
-            fasta::Record::new(
-                fasta::record::Definition::new("id1", None),
-                fasta::record::Sequence::from(b"ACGT".to_vec()),
-            ),
-            fasta::Record::new(
-                fasta::record::Definition::new("id2", None),
-                fasta::record::Sequence::from(b"TGCA".to_vec()),
-            ),
-        ];
+        let records = vec![Record::new("id1", "ACGT"), Record::new("id2", "TGCA")];
 
         let msa = MSA::new(records.clone(), HashMap::new(), HashMap::new());
         assert_eq!(msa.len(), 2);
@@ -194,31 +175,18 @@ mod tests {
 
     #[test]
     fn msa_alignment_len() {
-        let records = vec![
-            fasta::Record::new(
-                fasta::record::Definition::new("id1", None),
-                fasta::record::Sequence::from(b"ACGT".to_vec()),
-            ),
-            fasta::Record::new(
-                fasta::record::Definition::new("id2", None),
-                fasta::record::Sequence::from(b"TGCA".to_vec()),
-            ),
-        ];
+        let records = vec![Record::new("id1", "ACGT"), Record::new("id2", "TGCA")];
 
         let msa = MSA::new(records.clone(), HashMap::new(), HashMap::new());
-        assert_eq!(msa.alignment_len(), 4);
+        assert_eq!(msa.col_len(), 4);
     }
 
     #[test]
     fn msa_push_valid_sequence() {
         let mut msa = MSA::default();
-        let record = fasta::Record::new(
-            fasta::record::Definition::new("id1", None),
-            fasta::record::Sequence::from(b"ACGT".to_vec()),
-        );
-        msa.add_record(record.clone());
+        msa.push_record("id1", "ACGT");
         assert_eq!(msa.len(), 1);
-        assert_eq!(msa.records[0], record);
+        assert_eq!(msa.records[0], Record::new("id1", "ACGT"));
     }
 
     #[test]
@@ -229,14 +197,10 @@ mod tests {
     #[test]
     fn msa_print_one_seqs() {
         let mut msa = MSA::default();
-        let record = fasta::Record::new(
-            fasta::record::Definition::new("id1", None),
-            fasta::record::Sequence::from(b"ACG".to_vec()),
-        );
-        msa.add_record(record.clone());
+        msa.push_record("id1", "ACG");
         assert_eq!(
             msa.to_string(),
-            "Alignment with 1 row and 3 columns\nid1 ACG"
+            "Alignment with 1 row and 3 columns\nid1\tACG\n"
         );
     }
-}*/
+}
